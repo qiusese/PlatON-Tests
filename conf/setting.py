@@ -4,7 +4,9 @@ import os
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 # 节点配置文件路径
-NODE_YML = os.path.abspath(os.path.join(BASE_DIR, "deploy/node/ppos2_10.yml"))
+NODE_YML = os.path.abspath(os.path.join(BASE_DIR, "deploy/node/ppos_wyq.yml"))
+
+GOVERN_NODE_YML = os.path.abspath(os.path.join(BASE_DIR, "deploy/node/govern_node_7.yml"))
 
 # vc节点配置文件路径
 VC_NODE_YML = os.path.abspath(os.path.join(BASE_DIR, "deploy/node/vc_node.yml"))
@@ -17,7 +19,8 @@ BOB_NODE_YML = os.path.abspath(os.path.join(BASE_DIR, "deploy/node/bob.yml"))
 
 PPOS_NODE_YML = os.path.abspath(os.path.join(BASE_DIR, "deploy/node/ppos_wyq.yml"))
 
-PPOS_NODE_TEST_YML = os.path.abspath(os.path.join(BASE_DIR, "deploy/node/ppos2_10.yml"))
+
+PPOS_NODE_TEST_YML = os.path.abspath(os.path.join(BASE_DIR, "deploy/node/ppos_7.yml"))
 
 # ppos系统参数配置文件
 PLATON_CONFIG_PATH = os.path.abspath(os.path.join(BASE_DIR, "deploy/config.json"))
@@ -94,7 +97,7 @@ DPOS_CONTRACT_ABI = os.path.abspath(os.path.join(BASE_DIR, 'data/dpos/candidateC
 # 种子节点
 TEST_NET_NODE = os.path.abspath(os.path.join(BASE_DIR, "deploy/node/test_net.yml"))
 
-GOVERN_NODE_YML = os.path.abspath(os.path.join(BASE_DIR, "deploy/node/govern_node_4.yml"))
+GOVERN_NODE_YML = os.path.abspath(os.path.join(BASE_DIR, "deploy/node/govern_node_7.yml"))
 
 # mpclib
 MPCLIB = os.path.abspath(os.path.join(BASE_DIR, "deploy/rely/mpclib/mpclib.tar.gz"))
