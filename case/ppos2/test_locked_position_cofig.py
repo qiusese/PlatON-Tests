@@ -433,6 +433,12 @@ class TestLockeDpositionConfig:
         CommonMethod.get_next_settlement_interval (self,1)
         Balance4 = platon_ppos.eth.getBalance (address2)
         log.info ("{}加入共识验证人后账户余额：{}".format (address2, Balance4))
+        CandidateInfo = platon_ppos.getCandidateInfo(nodeId)
+        log.info("质押节点信息：{}".format(CandidateInfo))
+        VerifierList = platon_ppos.getVerifierList()
+        log.info("当前验证人列表：{}".format(VerifierList))
+        ValidatorList = platon_ppos.getValidatorList()
+        log.info("当前共识周期验证人列表：{}".format(ValidatorList))
 
         # 获取节点内置质押节点信息
         con_node, no_node = get_node_list (self.node_yml_path)
@@ -450,11 +456,17 @@ class TestLockeDpositionConfig:
 
         # 到达解锁期后处罚节点后锁仓账户
         CommonMethod.get_next_settlement_interval (self,1)
+        CandidateInfo = platon_ppos.getCandidateInfo (nodeId)
+        log.info ("质押节点信息：{}".format (CandidateInfo))
+        VerifierList = platon_ppos.getVerifierList ()
+        log.info ("当前验证人列表：{}".format (VerifierList))
+        ValidatorList = platon_ppos.getValidatorList ()
+        log.info ("当前共识周期验证人列表：{}".format (ValidatorList))
         Balance5 = platon_ppos.eth.getBalance (address2)
         log.info ("{}到达解锁期后处罚节点后预期账户余额：{}".format (address2,Balance4 + Web3.toWei (amount-(amount * 0.2), 'ether')))
         log.info ("{}到达解锁期后处罚节点后实际账户余额：{}".format (address2,Balance5))
         result = platon_ppos.getCandidateInfo(nodeId)
-        assert Balance5 == Balance4 + Web3.toWei (amount-(amount * 0.2), 'ether'), "锁仓账户金额：{} 有误".format (Balance4)
+        assert Balance5 == Balance4, "锁仓账户金额：{} 有误".format (Balance4)
         RestrictingInfo = platon_ppos.GetRestrictingInfo (address2)
         assert RestrictingInfo['Status'] == True, "获取锁仓计划返回状态为:{} 有误".format (result['Status'])
         dict_Info = json.loads (RestrictingInfo['Data'])
@@ -463,19 +475,31 @@ class TestLockeDpositionConfig:
         assert dict_Info['debt'] == Web3.toWei (amount-(amount * 0.2), 'ether'), "欠释放锁仓金额：{} 有误".format (dict_Info['debt'])
 
 
-    def test_eliminated_verifier_create_lockup(self):
+    @pytest.mark.parametrize ('Status,', [(1),(2),(3)])
+    def test_eliminated_verifier_create_lockup(self,Status):
         '''
-        验证人违规被剔除验证人列表，申请质押节点
+        1、验证人违规被剔除验证人列表，申请质押节点
+        2、验证人违规被剔除验证人列表，申请委托节点
+        3、验证人违规被剔除验证人列表，申请增持质押
         :return:
         '''
         nodeId = CommonMethod.get_no_candidate_list (self)
         url = CommonMethod.link_list (self)
         platon_ppos = Ppos (url, self.address, self.chainid)
         address1, private_key1 = CommonMethod.read_private_key_list ()
+        address2, private_key2 = CommonMethod.read_private_key_list ()
+
 
         # 签名转账
         result = platon_ppos.send_raw_transaction ('', Web3.toChecksumAddress (self.address),
                                                    Web3.toChecksumAddress (address1),
+                                                   self.base_gas_price, self.base_gas, self.value, self.privatekey)
+        return_info = platon_ppos.eth.waitForTransactionReceipt (result)
+        assert return_info is not None, "转账：{}失败".format (self.value)
+
+        # 签名转账
+        result = platon_ppos.send_raw_transaction ('', Web3.toChecksumAddress (self.address),
+                                                   Web3.toChecksumAddress (address2),
                                                    self.base_gas_price, self.base_gas, self.value, self.privatekey)
         return_info = platon_ppos.eth.waitForTransactionReceipt (result)
         assert return_info is not None, "转账：{}失败".format (self.value)
@@ -513,17 +537,6 @@ class TestLockeDpositionConfig:
         ValidatorList = platon_ppos.getValidatorList()
         log.info("当前共识验证人列表：{}".format(ValidatorList))
 
-
-
-        # for dictinfo in CandidateInfo['Data']:
-        #     if nodeId == dictinfo['NodeId']:
-        #         log.info("节点id：{}已成为共识验证人".format(nodeId))
-        #         break
-        #     else:
-        #         log.info("节点id：{}未成为共识验证人".format(nodeId))
-        #         status=0
-        #         assert status == 1
-
         # 获取节点内置质押节点信息
         con_node, no_node = get_node_list (self.node_yml_path)
         nodes = con_node + no_node
@@ -539,14 +552,38 @@ class TestLockeDpositionConfig:
 
         # 等待节点被剔除验证人列表
         CommonMethod.get_next_consensus_wheel (self,2)
+        CommonMethod.get_next_settlement_interval (self)
+        CandidateInfo = platon_ppos.getCandidateInfo (nodeId)
+        log.info ("验证人信息{}".format (CandidateInfo))
+        VerifierList = platon_ppos.getVerifierList ()
+        log.info ("当前验证人列表：{}".format (VerifierList))
+        ValidatorList = platon_ppos.getValidatorList ()
+        log.info ("当前共识验证人列表：{}".format (ValidatorList))
+        if Status == 1:
+            # 申请质押节点
+            version = get_version (platon_ppos)
+            amount = 200
+            result = platon_ppos.createStaking (1, address1, nodeId, 'externalId', 'nodeName', 'website', 'details',
+                                                amount, version, privatekey=private_key1, from_address=address1,
+                                                gasPrice=self.base_gas_price, gas=self.staking_gas)
+            assert result['Status'] == False, "申请质押返回的状态：{},用例失败".format (result['Status'])
 
-        # 申请质押节点
-        version = get_version (platon_ppos)
-        amount = 200
-        result = platon_ppos.createStaking (1, address1, nodeId, 'externalId', 'nodeName', 'website', 'details',
-                                            amount, version, privatekey=private_key1, from_address=address1,
-                                            gasPrice=self.base_gas_price, gas=self.staking_gas)
-        assert result['Status'] == False, "申请质押返回的状态：{},用例失败".format (result['Status'])
+        elif Status == 2:
+            # 申请委托验证人节点
+            amount = 100
+            result = platon_ppos.delegate (0, nodeId, amount, privatekey=private_key2, from_address=address2,
+                                           gasPrice=self.base_gas_price, gas=self.staking_gas)
+            log.info ("申请委托地址：{}".format (address2))
+            assert result['Status'] == False, "申请委托返回的状态：{},用例失败".format (result['Status'])
+
+        elif Status == 3:
+            #申请增持质押节点
+            amount = 200
+            result = platon_ppos.addStaking (nodeId, 1, amount, privatekey=private_key1, from_address=address1,                                                             gasPrice=self.base_gas_price, gas=self.staking_gas)
+            assert result['Status'] == False, "申请增持质押节点返回的状态：{},用例失败".format (result['Status'])
+        else:
+            Status = 1
+            assert Status == 0, '输入的Status:{}有误'.format (Status)
 
     def test_owe_amountstack_lock_plan(self):
         '''
@@ -566,6 +603,20 @@ class TestLockeDpositionConfig:
         return_info = platon_ppos.eth.waitForTransactionReceipt (result)
         assert return_info is not None, "转账：{}失败".format (self.value)
 
+        # 给锁仓账号转手续费
+        result = platon_ppos.send_raw_transaction ('', Web3.toChecksumAddress (self.address),
+                                                   Web3.toChecksumAddress (address2),
+                                                   self.base_gas_price, self.base_gas, self.value,
+                                                   self.privatekey)
+        return_info = platon_ppos.eth.waitForTransactionReceipt (result)
+        assert return_info is not None, "转账：{}失败".format (self.value)
+
+
+        Balance = platon_ppos.eth.getBalance(address1)
+        log.info("{}账户余额：{}".format(address1,Balance))
+        Balance1 = platon_ppos.eth.getBalance (address2)
+        log.info ("{}账户余额：{}".format (address2, Balance1))
+
         # 创建锁仓计划
         lockupamoutn = 500
         loukupbalace = Web3.toWei (lockupamoutn, 'ether')
@@ -576,16 +627,8 @@ class TestLockeDpositionConfig:
         assert result['Status'] == True, "创建锁仓计划返回的状态：{},用例失败".format (result['Status'])
         RestrictingInfo = platon_ppos.GetRestrictingInfo (address2)
         assert RestrictingInfo['Status'] == True, "查询锁仓计划返回的状态：{},用例失败".format (result['Status'])
-
-        # 给锁仓账号转手续费
-        result = platon_ppos.send_raw_transaction ('', Web3.toChecksumAddress (self.address),
-                                                   Web3.toChecksumAddress (address2),
-                                                   self.base_gas_price, self.base_gas, self.value,
-                                                   self.privatekey)
-        return_info = platon_ppos.eth.waitForTransactionReceipt (result)
-        assert return_info is not None, "转账：{}失败".format (self.value)
-        balance = platon_ppos.eth.getBalance(address2)
-        log.info("锁仓账户余额：{}".format(balance))
+        Balance2 = platon_ppos.eth.getBalance (address1)
+        log.info ("{}创建锁仓计划后账户余额：{}".format (address1, Balance2))
 
         # 申请质押节点
         version = get_version (platon_ppos)
@@ -594,12 +637,14 @@ class TestLockeDpositionConfig:
                                             amount, version, privatekey=private_key2, from_address=address2,
                                             gasPrice=self.base_gas_price, gas=self.staking_gas)
         assert result['Status'] == True, "申请质押返回的状态：{},{},用例失败".format (result['Status'], result['ErrMsg'])
+        Balance3 = platon_ppos.eth.getBalance (address2)
+        log.info ("{}申请验证人后账户余额：{}".format (address2, Balance3))
 
         #到达解锁期释放锁仓金额
         CommonMethod.get_next_settlement_interval (self)
         platon_ppos.GetRestrictingInfo(address2)
-        balance = platon_ppos.eth.getBalance(address2)
-        log.info("到达解锁期释放锁仓余额：{}".format(balance))
+        Balance4 = platon_ppos.eth.getBalance(address2)
+        log.info("{}到达解锁期释放锁仓余额：{}".format(address2,Balance4))
 
         # 创建锁仓计划
         lockupamoutn = 100
@@ -609,10 +654,13 @@ class TestLockeDpositionConfig:
                                                     from_address=address1, gasPrice=self.base_gas_price,
                                                     gas=self.staking_gas)
         assert result['Status'] == True, "创建锁仓计划返回的状态：{},用例失败".format (result['Status'])
+        Balance5 = platon_ppos.eth.getBalance (address1)
+        log.info ("{}第二次创建锁仓计划后账户余额：{}".format (address1, Balance5))
+
         RestrictingInfo = platon_ppos.GetRestrictingInfo (address2)
         assert RestrictingInfo['Status'] == True, "查询锁仓计划返回的状态：{},用例失败".format (result['Status'])
         dict_Info = json.loads (RestrictingInfo['Data'])
-        assert dict_Info['balance'] == Web3.toWei (100, 'ether'), "锁仓金额：{}有误".format (dict_Info['balance'])
+        assert dict_Info['balance'] == loukupbalace, "锁仓金额：{}有误".format (dict_Info['balance'])
         assert dict_Info['symbol'] == True, "锁仓的状态：{} 有误".format (dict_Info['symbol'])
         assert dict_Info['debt'] == Web3.toWei (500, 'ether'), "欠释放锁仓金额：{} 有误".format (dict_Info['debt'])
 
@@ -621,12 +669,16 @@ class TestLockeDpositionConfig:
     def testss(self):
         url = CommonMethod.link_list (self)
         platon_ppos = Ppos (url, self.address, self.chainid)
-        while 1:
-            block = platon_ppos.eth.blockNumber
-            print(block)
+        aa = platon_ppos.eth.blockNumber
+        bb = platon_ppos.eth.getBlock(aa)
+        print(bb)
+        # while 1:
+        #     block = platon_ppos.eth.blockNumber
+        #     print(block)
         # Balance = platon_ppos.eth.getBalance('0x8E6b51f6D28A9e92726186Fb3D1720A31b098694')
         # print(Balance)
-        # platon_ppos1 = connect_web3 ('http://192.168.10.225:6789')
+        #platon_ppos1 = connect_web3 ('http://192.168.10.225:6789')
+
         # result = platon_ppos1.isConnected()
         # print(result)
         # result1 = platon_ppos.getCandidateInfo ('2c34d6cd119e3b77b43aecdcfd653cacbd6b3b3c387a0d227e4d71b36a6a71b6111ecc953e329015fb1bc06961819609ffd5f73b63a179f27893e9e2da1e8ca1')
@@ -639,7 +691,6 @@ class TestLockeDpositionConfig:
 
 
 
-
 if __name__ == '__main__':
     a = TestLockeDpositionConfig()
     #a.start_init()
@@ -648,4 +699,4 @@ if __name__ == '__main__':
     #a.test_multiple_unlock_Normal()
     a.testss()
     #a.test_unlock_point_pledge_amount()
-    #a.test_eliminated_verifier_create_lockup()
+    #a.test_unlock_point_pledge_punish_amount()

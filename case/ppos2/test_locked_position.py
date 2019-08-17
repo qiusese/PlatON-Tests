@@ -698,8 +698,7 @@ class TestLockeDposition:
         result = platon_ppos.CreateRestrictingPlan (address2, plan, privatekey=private_key1, from_address=address1,
                                         gasPrice=self.base_gas_price, gas=self.staking_gas)
         assert result['Status'] == True, "创建锁仓计划返回的状态：{},用例失败".format (result['Status'])
-        # RestrictingInfo = platon_ppos.GetRestrictingInfo (address2)
-        # assert RestrictingInfo['Status'] == True, "查询锁仓计划返回的状态：{},用例失败".format (result['Status'])
+
 
         balance = platon_ppos.eth.getBalance (address2)
         log.info ("发起锁仓账户余额:{}".format (balance))
@@ -741,6 +740,66 @@ class TestLockeDposition:
         assert lockup_end == lockup_before , "质押金退回后锁仓金额：{}有误".format (lockup_end)
         assert Staking_end == Staking_before, "质押金退回后Staking金额：{}有误".format (Staking_end)
         assert Info['balance'] == loukupbalace, "锁仓计划金额：{}有误".format (RestrictingInfo['balance'])
+
+    def test_lockup_addStaking(self):
+        '''
+        锁仓申请质押后用锁仓余额进行增持质押
+        :return:
+        '''
+        nodeId = CommonMethod.get_no_candidate_list (self)
+        url = CommonMethod.link_list (self)
+        platon_ppos = Ppos (url, self.address, self.chainid)
+        address1, private_key1 = CommonMethod.read_private_key_list ()
+        address2, private_key2 = CommonMethod.read_private_key_list ()
+
+        # 签名转账
+        result = platon_ppos.send_raw_transaction ('', Web3.toChecksumAddress (self.address),
+                                                   Web3.toChecksumAddress (address1),
+                                                   self.base_gas_price, self.base_gas, self.value, self.privatekey)
+        return_info2 = platon_ppos.eth.waitForTransactionReceipt (result)
+        assert return_info2 is not None, "转账：{}失败".format (self.value)
+
+        # 签名转账
+        result = platon_ppos.send_raw_transaction ('', Web3.toChecksumAddress (self.address),
+                                                   Web3.toChecksumAddress (address2),
+                                                   self.base_gas_price, self.base_gas, self.value,
+                                                   conf.PRIVATE_KEY)
+        return_info = platon_ppos.eth.waitForTransactionReceipt (result)
+
+        assert return_info is not None, "转账锁仓账号手续费：{}失败".format (self.value)
+
+        # 创建锁仓计划
+        loukupbalace = Web3.toWei (900, 'ether')
+        plan = [{'Epoch': 1, 'Amount': loukupbalace}]
+        result = platon_ppos.CreateRestrictingPlan (address2, plan, privatekey=private_key1, from_address=address1,
+                                                    gasPrice=self.base_gas_price, gas=self.staking_gas)
+        assert result['Status'] == True, "创建锁仓计划返回的状态：{},用例失败".format (result['Status'])
+
+        # 申请质押节点
+        version = get_version (platon_ppos)
+        amount = 100
+        result = platon_ppos.createStaking (1, address2, nodeId, 'externalId', 'nodeName', 'website', 'details',
+                                            amount, version, privatekey=private_key2, from_address=address2,
+                                            gasPrice=self.base_gas_price, gas=self.staking_gas)
+        assert result['Status'] == True, "申请质押返回的状态：{},{}用例失败".format (result['Status'], result['ErrMsg'])
+
+        # 增持质押节点
+        result = platon_ppos.addStaking (nodeId, 1, amount, privatekey=private_key2, from_address=address2,
+                                         gasPrice=self.base_gas_price, gas=self.staking_gas)
+        assert result['Status'] == True, "申请增持质押节点返回的状态：{},用例失败".format (result['Status'])
+        RestrictingInfo = platon_ppos.GetRestrictingInfo (address2)
+        assert RestrictingInfo['Status'] == True, "查询锁仓计划返回的状态：{},用例失败".format (result['Status'])
+        Info = json.loads(RestrictingInfo['Data'])
+        assert Info['balance'] == loukupbalace - Web3.toWei (amount * 2, 'ether'),"锁仓计划余额{}有误".format(Info['balance'])
+        CandidateInfo = platon_ppos.getCandidateInfo(nodeId)
+        assert CandidateInfo['Status'] == True, "申请增持质押节点返回的状态：{},用例失败".format (result['Status'])
+        Restricting = json.loads(CandidateInfo['Data'])
+        assert Restricting['Shares'] == Web3.toWei (amount * 2, 'ether'),"质押总金额{}有误".format(Restricting['Shares'])
+
+
+
+
+
 
 
     # def test_loukupplan_amount(self):
