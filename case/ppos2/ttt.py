@@ -11,18 +11,9 @@ from client_sdk_python import (
     Web3,
 )
 import random
+#初始token
+von= 10000000000
 
-
-
-
-
-# a = 900000000000000000000 - (900000000000000000000*(20/100))
-# b = 997076800000000000000
-# c = a -b
-# print(c)
-# print(int(a))
-# 720000000000000000000
-# 720000000000000000000
-amount = 900
-aa = Web3.toWei (amount-(amount * 0.2), 'ether')
-print(aa)
+von1 = von*(1+0.025)
+von2 = von*(1+0.025)*(1+0.025)
+von3 = von*(1+0.025)*(1+0.025)*(1+0.025)
